@@ -26,51 +26,59 @@ class Servicio(Entidad, ABC):
     #clase abstracta Entidad y define el contrato para todos los
     #servicios especializados.
 
-IVA = 0.19 #Tasa por defecto del IVA al 19%
+    IVA = 0.19  # Tasa por defecto del IVA al 19%
+    UNIDAD_DURACION = "horas"
+    # Unidad de medida por defecto para la duración de los servicios
 
-UNIDAD_DURACION = "horas"
-#Unidad de medida por defecto para la duracion de los servicios
+    # Descuentos con nombre que el cliente puede solicitar por código
+    DESCUENTOS = {
+        "ESTUDIANTE": 0.15,  # 15% de descuento para estudiantes
+        "COPORATIVO": 0.10,  # 10% de descuento para corporativos
+        "FRECUENTE": 0.05,  # 5% de descuento para clientes frecuentes
+    }
+    DESCUENTOS_NOMBRADOS = DESCUENTOS
 
-#Descuentos con nombre que el cliente puede solicitar por código
-DESCUENTOS = {
-    "ESTUDIANTE": 0.15,  # 15% de descuento para estudiantes
-    "COPORATIVO": 0.10,  # 10% de descuento para corporativos
-    "FRECUENTE": 0.05,  # 5% de descuento para clientes frecuentes
-}
+    def __init__(self, nombre, tarifa_base, disponible=True):
+        super().__init__()  # Asigna un ID unico a la instancia de Servicio
+        self._nombre = self._validar_texto(nombre, "nombre")
+        self.tarifa_base = self._validar_numero(
+            tarifa_base, "tarifa_base", minimo=0, estricto=True
+        )
+        self.disponible = self._validar_booleano(disponible, "disponible")
 
-def __init__(self, nombre, tarifa_base, disponible=True):
-    super().__init__()  # Asigna un ID unico a la instancia de Servicio
-    self._nombre = self._validar_texto(nombre, "nombre")  # Nombre del servicio, validado
-    self.tarifa_base = self._validar_numero(tarifa_base, "tarifa_base", minimo=0, estricto=True)  # Tarifa base del servicio, validada
-    self.disponible = self._validar_booleano(disponible, "disponible")  # Indica si el servicio está disponible
+    # -------------------------------------------
+    # Propiedades (Encapsulación de atributos)
+    # -------------------------------------------
 
-#-------------------------------------------
-#Propiedades (Encapsulación de atributos)
-#-------------------------------------------
+    @property
+    def nombre(self):
+        """Obtiene el nombre del servicio."""
+        return self._nombre
 
-@property
-def nombre(self):
-    """Obtiene el nombre del servicio."""
-    return self._nombre
+    @property
+    def tarifa_base(self):
+        """Obtiene la tarifa base del servicio."""
+        return self._tarifa_base
 
-@property
-def tarifa_base(self):
-    """Obtiene la tarifa base del servicio."""
-    return self._tarifa_base
+    @tarifa_base.setter
+    def tarifa_base(self, valor):
+        self._tarifa_base = self._validar_numero(
+            valor, "tarifa_base", minimo=0, estricto=True
+        )
 
-@property
-def disponible(self):
-    """Obtiene el estado de disponibilidad del servicio."""
-    return self._disponible
+    @property
+    def disponible(self):
+        """Obtiene el estado de disponibilidad del servicio."""
+        return self._disponible
 
-@disponible.setter
-def disponible(self, valor):
-    self._disponible = self._validar_booleano(valor, "disponible")
-    logger.info(
-        "Servicio '%s' disponibilidad establecida a: %s",
-        self.nombre,
-        self._disponible,
-    )
+    @disponible.setter
+    def disponible(self, valor):
+        self._disponible = self._validar_booleano(valor, "disponible")
+        logger.info(
+            "Servicio '%s' disponibilidad establecida a: %s",
+            self.nombre,
+            self._disponible,
+        )
 
 
  # ------------------------------------------------------------------
@@ -97,7 +105,7 @@ def disponible(self, valor):
     @staticmethod
     def _validar_numero(valor, campo, minimo=None, maximo=None, estricto=False):
         #Valida un número real dentro de un rango. estricto=True hace que `minimo` sea excluyente (valor > minimo).
-        
+
         if valor is None:
             raise ParametroFaltanteError(f"Falta el parámetro '{campo}'.")
         # bool es subclase de int, por eso se excluye de forma explícita
