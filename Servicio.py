@@ -10,7 +10,7 @@ import logging #Registro de eventos y errores
 import math #Detectamos resultados no finitos como NaN, Inf, -Inf
 from abc import ABC, abstractmethod
 
-from Entidad import Entidad  # Clase abstracta general del sistema
+from entidad import Entidad  # Clase abstracta general del sistema
 from excepciones import (  # Excepciones personalizadas del sistema
     CalculoInconsistenteError,
     ParametroFaltanteError,
@@ -174,21 +174,34 @@ class Servicio(Entidad, ABC):
         """Valida duración y opciones propias. Lanza ValidacionError si falla."""
 
     @abstractmethod
-    def calcular_costo(self, duracion, **opciones):
+    def calcular_costo(self, duracion, **opciones) -> float:
+        """
+        Calcula el costo base del servicio para la duración dada.
+
+        Parámetros:
+            duracion (float): Duración del servicio en la unidad definida por UNIDAD_DURACION.
+            **opciones: Opciones adicionales específicas del servicio.
+
+        Devuelve:
+            float: Costo base (sin aplicar descuentos ni impuestos).
+
+        Lanza:
+            ValidacionError: Si los parámetros no son válidos.
+        """
         """Costo base (sin descuento ni impuesto) para la duración dada."""
 
     @abstractmethod
     def describir(self) -> str:
         """Descripción legible del servicio."""
 
-    def descuento_por_defecto(self, duracion):
+    def descuento_por_defecto(self, duracion) -> float:
         """Descuento automático según la duración (las hijas pueden sobrescribirlo)."""
         return 0.0
 
     # ------------------------------------------------------------------
     # Descuentos e impuestos (resolución polimórfica por tipo de dato)
     # ------------------------------------------------------------------
-    def _resolver_descuento(self, descuento, duracion):
+    def _resolver_descuento(self, descuento, duracion) -> float:
         """Convierte el descuento recibido en una tasa entre 0 y 1.
 
         Admite tres variantes (sobrecarga por tipo de argumento):
