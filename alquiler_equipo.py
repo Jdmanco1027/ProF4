@@ -1,6 +1,9 @@
 """Servicio especializado de alquiler de equipos de Software FJ.
 
-Calcula el costo del alquiler según la duración, la cantidad y el seguro.
+Calcula el costo base del alquiler según duración, unidades y seguro. El total
+de calcular_costo_total() es un float; por defecto incluye el descuento
+automático del servicio y el IVA del 19 %. desglose_costo() devuelve el detalle
+como dict.
 """
 
 from Servicio import Servicio  # Clase abstracta de la que hereda
@@ -10,8 +13,11 @@ class AlquilerEquipo(Servicio):
     """Alquiler de equipos cobrado por día y por unidad.
 
     Opciones del cálculo:
-        cantidad: unidades a alquilar; no puede superar el stock disponible.
-        con_seguro: agrega un recargo al costo del alquiler.
+        unidades: multiplica el costo base y no puede superar el stock.
+        con_seguro: agrega un recargo del 5 % al costo base.
+
+    El costo base no incluye descuentos ni impuestos. Desde los 7 días se
+    aplica automáticamente un descuento del 10 % (15 % desde los 15 días).
     """
 
     # ------------------------------------------------------------------
@@ -22,9 +28,11 @@ class AlquilerEquipo(Servicio):
     DIAS_MAX = 30  # Duración máxima del alquiler
     RECARGO_SEGURO = 0.05  # Recargo del 5 % si se contrata seguro
 
-    def __init__(self, nombre, tarifa_dia, tipo_equipo, stock, disponible=True):
+    def __init__(
+        self, nombre, tarifa_dia, tipo_equipo, stock, disponible=True, *, id_entidad=None
+    ):
         # Inicializa y valida los atributos comunes definidos por Servicio.
-        super().__init__(nombre, tarifa_dia, disponible)
+        super().__init__(nombre, tarifa_dia, disponible, id_entidad=id_entidad)
         self._tipo_equipo = self._validar_texto(tipo_equipo, "tipo_equipo")
         self._stock = self._validar_entero(stock, "stock", minimo=1)
 
@@ -45,27 +53,27 @@ class AlquilerEquipo(Servicio):
     # Validación de parámetros propios
     # ------------------------------------------------------------------
     def validar_parametros(
-        self, duracion, cantidad=1, con_seguro=False, **otros
+        self, duracion, unidades=1, con_seguro=False, **otros
     ):
-        """Valida la duración, la cantidad de equipos y el seguro."""
+        """Valida la duración, la cantidad de unidades y el seguro."""
         self._rechazar_opciones_desconocidas(otros)
         # La duración se expresa en días completos.
         self._validar_duracion(duracion, self.DIAS_MIN, self.DIAS_MAX, paso=1)
-        self._validar_entero(cantidad, "cantidad", minimo=1, maximo=self._stock)
+        self._validar_entero(unidades, "unidades", minimo=1, maximo=self._stock)
         self._validar_booleano(con_seguro, "con_seguro")
 
     # ------------------------------------------------------------------
     # Cálculo de costos
     # ------------------------------------------------------------------
     def calcular_costo(
-        self, duracion, cantidad=1, con_seguro=False, **otros
+        self, duracion, unidades=1, con_seguro=False, **otros
     ) -> float:
-        """Calcula el costo del alquiler según duración, cantidad y seguro.
+        """Calcula el costo base según duración, unidades y seguro.
 
         Devuelve:
-            float: Costo del alquiler antes de aplicar descuentos e impuestos.
+            float: Costo antes de aplicar descuentos e impuestos.
         """
-        costo = self._tarifa_base * duracion * cantidad
+        costo = self._tarifa_base * duracion * unidades
         if con_seguro:
             costo += costo * self.RECARGO_SEGURO
         return costo

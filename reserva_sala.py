@@ -1,6 +1,9 @@
 """Servicio especializado de reserva de salas de Software FJ.
 
-Calcula el costo de reservar una sala según la duración y el uso de proyector.
+Calcula el costo base de reservar una sala según la duración y el uso de
+proyector. El total de calcular_costo_total() es un float; por defecto incluye
+el descuento automático del servicio y el IVA del 19 %. desglose_costo()
+devuelve el detalle como dict.
 """
 
 from Servicio import Servicio  # Clase abstracta de la que hereda
@@ -10,8 +13,11 @@ class ReservaSala(Servicio):
     """Reserva de una sala de reuniones cobrada por hora.
 
     Opciones del cálculo:
-        num_asistentes: no puede superar la capacidad de la sala.
+        personas: valida el aforo; no modifica la tarifa.
         con_proyector: agrega un recargo por hora de uso.
+
+    El costo base no incluye descuentos ni impuestos. Desde las 8 horas se
+    aplica automáticamente un descuento del 10 % al calcular el total.
     """
 
     # ------------------------------------------------------------------
@@ -24,9 +30,11 @@ class ReservaSala(Servicio):
     HORAS_DESCUENTO = 8  # Desde estas horas aplica descuento automático
     DESCUENTO_JORNADA = 0.10  # 10 % por reservar una jornada larga
 
-    def __init__(self, nombre, tarifa_hora, capacidad, disponible=True):
+    def __init__(
+        self, nombre, tarifa_hora, capacidad, disponible=True, *, id_entidad=None
+    ):
         # Inicializa y valida los atributos comunes definidos por Servicio.
-        super().__init__(nombre, tarifa_hora, disponible)
+        super().__init__(nombre, tarifa_hora, disponible, id_entidad=id_entidad)
         # La capacidad debe ser un entero positivo.
         self._capacidad = self._validar_entero(capacidad, "capacidad", minimo=1)
 
@@ -42,15 +50,15 @@ class ReservaSala(Servicio):
     # Validación de parámetros propios
     # ------------------------------------------------------------------
     def validar_parametros(
-        self, duracion, num_asistentes=1, con_proyector=False, **otros
+        self, duracion, personas=1, con_proyector=False, **otros
     ):
-        """Valida la duración, la cantidad de asistentes y el proyector."""
+        """Valida la duración, la cantidad de personas y el proyector."""
         self._rechazar_opciones_desconocidas(otros)
         # La duración se expresa en horas completas.
         self._validar_duracion(duracion, self.HORAS_MIN, self.HORAS_MAX, paso=1)
-        # La cantidad de asistentes no debe superar la capacidad de la sala.
+        # La cantidad de personas no debe superar la capacidad de la sala.
         self._validar_entero(
-            num_asistentes, "num_asistentes", minimo=1, maximo=self._capacidad
+            personas, "personas", minimo=1, maximo=self._capacidad
         )
         self._validar_booleano(con_proyector, "con_proyector")
 
@@ -58,12 +66,12 @@ class ReservaSala(Servicio):
     # Cálculo de costos
     # ------------------------------------------------------------------
     def calcular_costo(
-        self, duracion, num_asistentes=1, con_proyector=False, **otros
+        self, duracion, personas=1, con_proyector=False, **otros
     ) -> float:
-        """Calcula el costo según la duración y el uso del proyector.
+        """Calcula el costo base según la duración y el uso del proyector.
 
         Devuelve:
-            float: Costo base antes de aplicar descuentos e impuestos.
+            float: Costo antes de aplicar descuentos e impuestos.
         """
         costo = self._tarifa_base * duracion
         if con_proyector:

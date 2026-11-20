@@ -1,6 +1,8 @@
 """Servicio especializado de asesoría de Software FJ.
 
-Calcula el costo de asesorías por hora según el nivel y la modalidad.
+Calcula el costo base por hora según el nivel y la modalidad. El total de
+calcular_costo_total() es un float; por defecto incluye el descuento automático
+del servicio y el IVA del 19 %. desglose_costo() devuelve el detalle como dict.
 """
 
 from Servicio import Servicio  # Clase abstracta de la que hereda
@@ -13,6 +15,9 @@ class Asesoria(Servicio):
         nivel: "junior", "senior" o "experto"; modifica la tarifa por hora.
         modalidad: "virtual" o "presencial"; la modalidad presencial tiene
         un costo adicional.
+
+    El costo base no incluye descuentos ni impuestos. El descuento automático
+    es del 5 % desde las 5 horas.
     """
 
     # ------------------------------------------------------------------
@@ -25,9 +30,11 @@ class Asesoria(Servicio):
     NIVELES = {"junior": 1.0, "senior": 1.5, "experto": 2.0}
     MODALIDADES = {"virtual": 1.0, "presencial": 1.2}
 
-    def __init__(self, nombre, tarifa_hora, especialidad, disponible=True):
+    def __init__(
+        self, nombre, tarifa_hora, especialidad, disponible=True, *, id_entidad=None
+    ):
         # Inicializa y valida los atributos comunes definidos por Servicio.
-        super().__init__(nombre, tarifa_hora, disponible)
+        super().__init__(nombre, tarifa_hora, disponible, id_entidad=id_entidad)
         self._especialidad = self._validar_texto(especialidad, "especialidad")
 
     # ------------------------------------------------------------------
@@ -41,7 +48,9 @@ class Asesoria(Servicio):
     # ------------------------------------------------------------------
     # Validación de parámetros propios
     # ------------------------------------------------------------------
-    def validar_parametros(self, duracion, nivel="junior", modalidad="virtual", **otros):
+    def validar_parametros(
+        self, duracion, nivel="junior", modalidad="virtual", **otros
+    ):
         """Valida la duración, el nivel y la modalidad de la asesoría."""
         self._rechazar_opciones_desconocidas(otros)
         self._validar_duracion(

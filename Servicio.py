@@ -9,14 +9,14 @@ la duplicidad logica en clases hijas.
 import logging #Registro de eventos y errores
 import math #Detectamos resultados no finitos como NaN, Inf, -Inf
 from abc import ABC, abstractmethod
+from uuid import uuid4
 
-from entidad import Entidad  # Clase abstracta general del sistema
-from excepciones import (  # Excepciones personalizadas del sistema
-    CalculoInconsistenteError,
+from Entidad import Entidad  # Clase abstracta general del sistema
+from excepciones import (
+    DatoInvalidoError,
+    OperacionNoPermitidaError,
     ParametroFaltanteError,
-    ServicioNoDisponibleError,
-    SoftwareFJError,
-    ValidacionError,
+    SistemaSoftwareFJError,
 )
 
 logger = logging.getLogger(__name__)  # Configuración del logger para esta clase
@@ -38,8 +38,10 @@ class Servicio(Entidad, ABC):
     }
     DESCUENTOS_NOMBRADOS = DESCUENTOS
 
-    def __init__(self, nombre, tarifa_base, disponible=True):
-        super().__init__()  # Asigna un ID unico a la instancia de Servicio
+    def __init__(self, nombre, tarifa_base, disponible=True, *, id_entidad=None):
+        if id_entidad is None:
+            id_entidad = f"SRV-{uuid4().hex.upper()}"
+        super().__init__(id_entidad)
         self._nombre = self._validar_texto(nombre, "nombre")
         self.tarifa_base = self._validar_numero(
             tarifa_base, "tarifa_base", minimo=0, estricto=True
@@ -90,7 +92,7 @@ class Servicio(Entidad, ABC):
         if valor is None:
             raise ParametroFaltanteError(f"Falta el parámetro '{campo}'.")
         if not isinstance(valor, str) or not valor.strip():
-            raise ValidacionError(f"'{campo}' debe ser un texto no vacío.")
+            raise DatoInvalidoError(f"'{campo}' debe ser un texto no vacío.")
         return valor.strip()
 
     @staticmethod
@@ -99,7 +101,7 @@ class Servicio(Entidad, ABC):
         if valor is None:
             raise ParametroFaltanteError(f"Falta el parámetro '{campo}'.")
         if not isinstance(valor, bool):
-            raise ValidacionError(f"'{campo}' debe ser booleano (True/False).")
+            raise DatoInvalidoError(f"'{campo}' debe ser booleano (True/False).")
         return valor
 
     @staticmethod
@@ -110,16 +112,16 @@ class Servicio(Entidad, ABC):
             raise ParametroFaltanteError(f"Falta el parámetro '{campo}'.")
         # bool es subclase de int, por eso se excluye de forma explícita
         if isinstance(valor, bool) or not isinstance(valor, (int, float)):
-            raise ValidacionError(f"'{campo}' debe ser numérico, no {type(valor).__name__}.")
+            raise DatoInvalidoError(f"'{campo}' debe ser numérico, no {type(valor).__name__}.")
         if math.isnan(valor) or math.isinf(valor):
-            raise ValidacionError(f"'{campo}' no puede ser NaN ni infinito.")
+            raise DatoInvalidoError(f"'{campo}' no puede ser NaN ni infinito.")
         if minimo is not None:
             if estricto and valor <= minimo:
-                raise ValidacionError(f"'{campo}' debe ser mayor que {minimo}.")
+                raise DatoInvalidoError(f"'{campo}' debe ser mayor que {minimo}.")
             if not estricto and valor < minimo:
-                raise ValidacionError(f"'{campo}' debe ser al menos {minimo}.")
+                raise DatoInvalidoError(f"'{campo}' debe ser al menos {minimo}.")
         if maximo is not None and valor > maximo:
-            raise ValidacionError(f"'{campo}' no puede superar {maximo}.")
+            raise DatoInvalidoError(f"'{campo}' no puede superar {maximo}.")
         return valor
 
     @staticmethod
@@ -128,11 +130,11 @@ class Servicio(Entidad, ABC):
         if valor is None:
             raise ParametroFaltanteError(f"Falta el parámetro '{campo}'.")
         if isinstance(valor, bool) or not isinstance(valor, int):
-            raise ValidacionError(f"'{campo}' debe ser un entero.")
+            raise DatoInvalidoError(f"'{campo}' debe ser un entero.")
         if minimo is not None and valor < minimo:
-            raise ValidacionError(f"'{campo}' debe ser al menos {minimo}.")
+            raise DatoInvalidoError(f"'{campo}' debe ser al menos {minimo}.")
         if maximo is not None and valor > maximo:
-            raise ValidacionError(f"'{campo}' no puede superar {maximo}.")
+            raise DatoInvalidoError(f"'{campo}' no puede superar {maximo}.")
         return valor
 
     @classmethod
@@ -142,7 +144,7 @@ class Servicio(Entidad, ABC):
         if paso:
             # Se compara con tolerancia para evitar errores de coma flotante
             if abs(duracion / paso - round(duracion / paso)) > 1e-9:
-                raise ValidacionError(
+                raise DatoInvalidoError(
                     f"'duracion' debe ser múltiplo de {paso} {cls.UNIDAD_DURACION}."
                 )
         return duracion
@@ -151,7 +153,7 @@ class Servicio(Entidad, ABC):
     def _rechazar_opciones_desconocidas(otros):
         """Falla si llegan opciones que el servicio no reconoce."""
         if otros:
-            raise ValidacionError(
+            raise DatoInvalidoError(
                 f"Opciones no reconocidas: {', '.join(sorted(otros))}."
             )
 
@@ -161,7 +163,7 @@ class Servicio(Entidad, ABC):
         if valor is None:
             raise ParametroFaltanteError(f"Falta el parámetro '{campo}'.")
         if not isinstance(valor, str) or valor.strip().lower() not in permitidas:
-            raise ValidacionError(
+            raise DatoInvalidoError(
                 f"'{campo}' debe ser uno de: {', '.join(sorted(permitidas))}."
             )
         return valor.strip().lower()
@@ -171,7 +173,7 @@ class Servicio(Entidad, ABC):
     # ------------------------------------------------------------------
     @abstractmethod
     def validar_parametros(self, duracion, **opciones):
-        """Valida duración y opciones propias. Lanza ValidacionError si falla."""
+        """Valida duración y opciones propias. Lanza DatoInvalidoError si falla."""
 
     @abstractmethod
     def calcular_costo(self, duracion, **opciones) -> float:
@@ -186,13 +188,24 @@ class Servicio(Entidad, ABC):
             float: Costo base (sin aplicar descuentos ni impuestos).
 
         Lanza:
-            ValidacionError: Si los parámetros no son válidos.
+            DatoInvalidoError: Si los parámetros no son válidos.
         """
         """Costo base (sin descuento ni impuesto) para la duración dada."""
 
     @abstractmethod
     def describir(self) -> str:
         """Descripción legible del servicio."""
+
+    def validar(self) -> bool:
+        """Valida los atributos comunes requeridos por Entidad."""
+        self._validar_texto(self._nombre, "nombre")
+        self._validar_numero(self._tarifa_base, "tarifa_base", minimo=0, estricto=True)
+        self._validar_booleano(self._disponible, "disponible")
+        return True
+
+    def obtener_resumen(self) -> str:
+        """Implementa el resumen requerido por Entidad."""
+        return self.describir()
 
     def descuento_por_defecto(self, duracion) -> float:
         """Descuento automático según la duración (las hijas pueden sobrescribirlo)."""
@@ -214,7 +227,7 @@ class Servicio(Entidad, ABC):
         if isinstance(descuento, str):
             codigo = descuento.strip().upper()
             if codigo not in self.DESCUENTOS_NOMBRADOS:
-                raise ValidacionError(f"Código de descuento desconocido: '{descuento}'.")
+                raise DatoInvalidoError(f"Código de descuento desconocido: '{descuento}'.")
             return self.DESCUENTOS_NOMBRADOS[codigo]
         return self._validar_numero(descuento, "descuento", minimo=0, maximo=1)
 
@@ -227,17 +240,21 @@ class Servicio(Entidad, ABC):
     # ------------------------------------------------------------------
     # Cálculo de costos (métodos sobrecargados mediante parámetros opcionales)
     # ------------------------------------------------------------------
-    def desglose_costo(self, duracion, descuento=None, impuesto=None, **opciones):
+    def desglose_costo(
+        self, duracion, descuento=None, impuesto=None, **opciones
+    ) -> dict:
         """Devuelve el detalle completo del cálculo como diccionario.
 
+        Incluye base, descuento, subtotal, impuesto y total.
+
         Usa try/except/else/finally y encadenamiento de excepciones:
-        cualquier error inesperado se convierte en CalculoInconsistenteError
+        cualquier error inesperado se convierte en SistemaSoftwareFJError
         conservando la causa original (`raise ... from`).
         """
         try:
             # 1) El servicio debe estar disponible
             if not self._disponible:
-                raise ServicioNoDisponibleError(
+                raise OperacionNoPermitidaError(
                     f"El servicio '{self._nombre}' no está disponible."
                 )
             # 2) Validar parámetros propios del servicio
@@ -252,15 +269,15 @@ class Servicio(Entidad, ABC):
             total = subtotal + valor_impuesto
             # 4) Verificar que el resultado sea coherente
             if math.isnan(total) or math.isinf(total) or total < 0:
-                raise CalculoInconsistenteError(f"Total inconsistente: {total}.")
-        except SoftwareFJError as exc:
+                raise SistemaSoftwareFJError(f"Total inconsistente: {total}.")
+        except SistemaSoftwareFJError as exc:
             # Errores propios: se registran y se propagan sin alterarlos
             logger.error("Error calculando costo de '%s': %s", self._nombre, exc)
             raise
         except (TypeError, ArithmeticError) as exc:
             # Errores inesperados: se encadenan a una excepción del dominio
             logger.error("Fallo inesperado en '%s': %r", self._nombre, exc)
-            raise CalculoInconsistenteError(
+            raise SistemaSoftwareFJError(
                 f"No fue posible calcular el costo de '{self._nombre}'."
             ) from exc
         else:
@@ -279,8 +296,10 @@ class Servicio(Entidad, ABC):
             # Se ejecuta siempre, haya o no error
             logger.debug("Fin del cálculo de costo para '%s'.", self._nombre)
 
-    def calcular_costo_total(self, duracion, descuento=None, impuesto=None, **opciones):
-        """Costo final con descuento e impuesto (ambos opcionales)."""
+    def calcular_costo_total(
+        self, duracion, descuento=None, impuesto=None, **opciones
+    ) -> float:
+        """Devuelve el costo final como float, con descuento e impuesto opcionales."""
         return self.desglose_costo(duracion, descuento, impuesto, **opciones)["total"]
 
     def costo_con_impuesto(self, duracion, impuesto=None, **opciones):
@@ -294,6 +313,6 @@ class Servicio(Entidad, ABC):
     def __repr__(self):
         # Representación técnica útil para depurar
         return (
-            f"{type(self).__name__}(id={self.id}, nombre={self._nombre!r}, "
+            f"{type(self).__name__}(id={self.id_entidad}, nombre={self._nombre!r}, "
             f"tarifa_base={self._tarifa_base}, disponible={self._disponible})"
         )
