@@ -1,7 +1,7 @@
 # ProF4
 
-Sistema integral de gestión de clientes, servicios y reservas para la fase 4
-del componente práctico.
+#Sistema integral de gestión de clientes, servicios y reservas para la fase 4
+#del componente práctico.
 
 ## Requisitos
 
